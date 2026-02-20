@@ -1,7 +1,7 @@
 // === CONFIGURATION ===
-const MAX_TICKS = 20;      // how many recent ticks to analyze
-const UP_THRESHOLD = 80;   // % for strong uptrend
-const DOWN_THRESHOLD = 20; // % for strong downtrend
+const MAX_TICKS = 20;
+const UP_THRESHOLD = 80;
+const DOWN_THRESHOLD = 20;
 
 // === DATA STORAGE ===
 let lastDigits75 = [];
@@ -41,7 +41,7 @@ function speakSignal(signalText) {
     window.speechSynthesis.speak(utterance);
 }
 
-// === ANALYSIS FUNCTION ===
+// === TREND CHECK FUNCTION ===
 function checkTrend(ticks, signalId, probId) {
     if (ticks.length < MAX_TICKS) return;
 
@@ -52,7 +52,6 @@ function checkTrend(ticks, signalId, probId) {
 
     let upPercent = (upCount / (ticks.length - 1)) * 100;
 
-    // Determine signal
     if (upPercent >= UP_THRESHOLD) {
         updateSignal(signalId, "BUY");
     } else if (upPercent <= DOWN_THRESHOLD) {
@@ -61,11 +60,10 @@ function checkTrend(ticks, signalId, probId) {
         updateSignal(signalId, "NO TRADE");
     }
 
-    // Update probability display
     document.getElementById(probId).textContent = Math.round(upPercent) + "%";
 }
 
-// === ADD NEW TICK FUNCTIONS ===
+// === ADD TICK FUNCTIONS ===
 function addTick75(tickValue) {
     lastDigits75.push(tickValue);
     if (lastDigits75.length > MAX_TICKS) lastDigits75.shift();
@@ -78,21 +76,37 @@ function addTick10(tickValue) {
     checkTrend(lastDigits10, "signal10", "prob10");
 }
 
-// === LIVE FEED SETUP USING YOUR APP ID ===
+// === LIVE FEED SETUP ===
 const APP_ID = 128128;
+let liveConnected = false;
 
-// Make sure you have Deriv API library loaded in your HTML
-// Example: <script src="https://cdn.jsdelivr.net/npm/@deriv/deriv-api/dist/deriv-api.min.js"></script>
-const client = new DerivAPI({ appId: APP_ID, language: 'en' });
+try {
+    const client = new DerivAPI({ appId: APP_ID, language: 'en' });
 
-// Subscribe to last digit ticks for VIX 75
-client.subscribe({ ticks: 'R_75' }, (response) => {
-    const tick = response.tick ? response.tick.last : null;
-    if (tick !== null) addTick75(tick);
-});
+    client.subscribe({ ticks: 'R_75' }, (response) => {
+        if (response.tick && response.tick.last !== undefined) {
+            liveConnected = true;
+            addTick75(response.tick.last);
+        }
+    });
 
-// Subscribe to last digit ticks for VIX 10
-client.subscribe({ ticks: 'R_10' }, (response) => {
-    const tick = response.tick ? response.tick.last : null;
-    if (tick !== null) addTick10(tick);
-});
+    client.subscribe({ ticks: 'R_10' }, (response) => {
+        if (response.tick && response.tick.last !== undefined) {
+            liveConnected = true;
+            addTick10(response.tick.last);
+        }
+    });
+} catch (err) {
+    console.error("Live connection failed, falling back to simulation:", err);
+}
+
+// === SIMULATION FALLBACK ===
+setInterval(() => {
+    if (!liveConnected) {
+        let tick75 = Math.floor(Math.random() * 10);
+        addTick75(tick75);
+
+        let tick10 = Math.floor(Math.random() * 10);
+        addTick10(tick10);
+    }
+}, 1000);
