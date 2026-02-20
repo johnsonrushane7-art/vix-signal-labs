@@ -1,45 +1,63 @@
-body {
-    background-color: #000;
-    color: #fff;
-    font-family: Arial, sans-serif;
-    text-align: center;
-}
+// -----------------------------
+// VIX PRO SIGNAL LAB script.js
+// -----------------------------
 
-h1 {
-    color: #00ffcc;
-    text-shadow: 0 0 15px #00ffcc;
-}
+const app_id = "cmeoUB84RSARWQ2"; // your Deriv API password
 
-.container {
-    display: flex;
-    justify-content: center;
-    gap: 40px;
-}
+// Connect to Deriv WebSocket
+const ws = new WebSocket(`wss://ws.derivws.com/websockets/v3?app_id=${app_id}`);
 
-.card {
-    background: #111;
-    padding: 20px;
-    width: 300px;
-    border: 2px solid #00ffcc;
-    box-shadow: 0 0 20px #00ffcc;
-    border-radius: 12px;
-}
+ws.onopen = function () {
+    console.log("Connected to Deriv");
 
-.rise {
-    color: #00ff00;
-    text-shadow: 0 0 20px #00ff00;
-}
+    // Subscribe to live ticks for VIX 75 and VIX 10
+    ws.send(JSON.stringify({ ticks: "R_75", subscribe: 1 }));
+    ws.send(JSON.stringify({ ticks: "R_10", subscribe: 1 }));
+};
 
-.neutral {
-    color: #888;
-}
+let last75 = 0;
+let last10 = 0;
 
-.alert {
-    animation: pulse 1s infinite;
-}
+// Handle incoming tick data
+ws.onmessage = function(msg) {
+    const data = JSON.parse(msg.data);
 
-@keyframes pulse {
-    0% { box-shadow: 0 0 10px #00ff00; }
-    50% { box-shadow: 0 0 30px #00ff00; }
-    100% { box-shadow: 0 0 10px #00ff00; }
+    if (data.tick) {
+        const symbol = data.tick.symbol;
+        const price = data.tick.quote;
+
+        if (symbol === "R_75") {
+            last75 = price;
+            updateDashboard("75", last75);
+        }
+
+        if (symbol === "R_10") {
+            last10 = price;
+            updateDashboard("10", last10);
+        }
+    }
+};
+
+// Function to calculate probability and update signals
+function updateDashboard(market, price) {
+    // Simple probability: higher price = higher probability
+    // You can customize this logic
+    let probability = Math.floor(Math.random() * 100); // placeholder random probability
+    let signal = "NO TRADE";
+    let signalClass = "neutral";
+
+    if (probability >= 60) {
+        signal = "RISE";
+        signalClass = "rise alert";
+    }
+
+    // Update HTML elements
+    document.getElementById("prob" + market).innerText = probability + "%";
+    document.getElementById("signal" + market).innerText = signal;
+    document.getElementById("signal" + market).className = signalClass;
+
+    document.getElementById("trend" + market).innerText = price; // show live price as trend
+    document.getElementById("support" + market).innerText = "Auto"; // placeholder
+    document.getElementById("win" + market).innerText = "N/A"; // placeholder
+    document.getElementById("cool" + market).innerText = "0"; // placeholder
 }
