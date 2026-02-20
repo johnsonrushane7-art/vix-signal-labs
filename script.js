@@ -2,7 +2,7 @@
 // VIX PRO SIGNAL LAB - LIVE SCRIPT
 // -----------------------------
 
-const app_id = "cmeoUB84RSARWQ2"; // Your Deriv API password
+const app_id = "128128"; // Your Deriv API password
 
 // Connect to Deriv WebSocket
 const ws = new WebSocket(`wss://ws.derivws.com/websockets/v3?app_id=${app_id}`);
