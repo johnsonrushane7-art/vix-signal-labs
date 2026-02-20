@@ -1,67 +1,98 @@
-// -----------------------------
-// VIX PRO SIGNAL LAB - LIVE SCRIPT
-// -----------------------------
+// === CONFIGURATION ===
+const MAX_TICKS = 20;      // how many recent ticks to analyze
+const UP_THRESHOLD = 80;   // % for strong uptrend
+const DOWN_THRESHOLD = 20; // % for strong downtrend
 
-const app_id = "128128"; // Your Deriv API password
+// === DATA STORAGE ===
+let lastDigits75 = [];
+let lastDigits10 = [];
 
-// Connect to Deriv WebSocket
-const ws = new WebSocket(`wss://ws.derivws.com/websockets/v3?app_id=${app_id}`);
+// === UTILITY: UPDATE SIGNAL ELEMENT ===
+function updateSignal(cardId, signalText) {
+    const signalElement = document.getElementById(cardId);
+    signalElement.classList.remove("buy", "sell", "neutral", "alert");
+    signalElement.textContent = signalText;
 
-// When connection opens
-ws.onopen = function () {
-    console.log("Connected to Deriv");
+    // Voice alert
+    speakSignal(signalText);
 
-    // Subscribe to live ticks for VIX 75
-    ws.send(JSON.stringify({ ticks: "R_75", subscribe: 1 }));
-
-    // Subscribe to live ticks for VIX 10
-    ws.send(JSON.stringify({ ticks: "R_10", subscribe: 1 }));
-};
-
-// Track last tick values
-let last75 = 0;
-let last10 = 0;
-
-// Handle incoming tick messages
-ws.onmessage = function(msg) {
-    const data = JSON.parse(msg.data);
-
-    // Check for live tick
-    if (data.tick) {
-        const symbol = data.tick.symbol;
-        const price = data.tick.quote;
-
-        if (symbol === "R_75") {
-            last75 = price;
-            updateDashboard("75", last75);
-        }
-
-        if (symbol === "R_10") {
-            last10 = price;
-            updateDashboard("10", last10);
-        }
+    if (signalText === "BUY") {
+        signalElement.classList.add("buy", "alert"); // green glow
+    } else if (signalText === "SELL") {
+        signalElement.classList.add("sell", "alert"); // red glow
+    } else {
+        signalElement.classList.add("neutral"); // gray
     }
-};
-
-// Update dashboard elements
-function updateDashboard(market, price) {
-    // Temporary simple probability logic (later can be improved)
-    let probability = Math.floor(Math.random() * 100); // placeholder
-    let signal = "NO TRADE";
-    let signalClass = "neutral";
-
-    if (probability >= 60) {
-        signal = "RISE";
-        signalClass = "rise alert";
-    }
-
-    // Update HTML elements
-    document.getElementById("prob" + market).innerText = probability + "%";
-    document.getElementById("signal" + market).innerText = signal;
-    document.getElementById("signal" + market).className = signalClass;
-
-    document.getElementById("trend" + market).innerText = price; // live price as trend
-    document.getElementById("support" + market).innerText = "Auto"; // placeholder
-    document.getElementById("win" + market).innerText = "N/A"; // placeholder
-    document.getElementById("cool" + market).innerText = "0"; // placeholder
 }
+
+// === SPEECH SYNTHESIS FUNCTION ===
+function speakSignal(signalText) {
+    if (signalText === "NO TRADE") return;
+
+    let utterance = new SpeechSynthesisUtterance();
+    utterance.lang = "en-US";
+
+    if (signalText === "BUY") {
+        utterance.text = "Buy up";
+    } else if (signalText === "SELL") {
+        utterance.text = "Buy down";
+    }
+
+    window.speechSynthesis.speak(utterance);
+}
+
+// === ANALYSIS FUNCTION ===
+function checkTrend(ticks, signalId, probId) {
+    if (ticks.length < MAX_TICKS) return;
+
+    let upCount = 0;
+    for (let i = 1; i < ticks.length; i++) {
+        if (ticks[i] > ticks[i - 1]) upCount++;
+    }
+
+    let upPercent = (upCount / (ticks.length - 1)) * 100;
+
+    // Determine signal
+    if (upPercent >= UP_THRESHOLD) {
+        updateSignal(signalId, "BUY");
+    } else if (upPercent <= DOWN_THRESHOLD) {
+        updateSignal(signalId, "SELL");
+    } else {
+        updateSignal(signalId, "NO TRADE");
+    }
+
+    // Update probability display
+    document.getElementById(probId).textContent = Math.round(upPercent) + "%";
+}
+
+// === ADD NEW TICK FUNCTIONS ===
+function addTick75(tickValue) {
+    lastDigits75.push(tickValue);
+    if (lastDigits75.length > MAX_TICKS) lastDigits75.shift();
+    checkTrend(lastDigits75, "signal75", "prob75");
+}
+
+function addTick10(tickValue) {
+    lastDigits10.push(tickValue);
+    if (lastDigits10.length > MAX_TICKS) lastDigits10.shift();
+    checkTrend(lastDigits10, "signal10", "prob10");
+}
+
+// === LIVE FEED SETUP USING YOUR APP ID ===
+const APP_ID = 128128;
+
+// Make sure you have Deriv API library loaded in your HTML
+// Example: <script src="https://cdn.jsdelivr.net/npm/@deriv/deriv-api/dist/deriv-api.min.js"></script>
+const client = new DerivAPI({ appId: APP_ID, language: 'en' });
+
+// Subscribe to last digit ticks for VIX 75
+client.subscribe({ ticks: 'R_75' }, (response) => {
+    const tick = response.tick ? response.tick.last : null;
+    if (tick !== null) addTick75(tick);
+});
+
+// Subscribe to last digit ticks for VIX 10
+client.subscribe({ ticks: 'R_10' }, (response) => {
+    const tick = response.tick ? response.tick.last : null;
+    if (tick !== null) addTick10(tick);
+});
