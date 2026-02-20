@@ -1,27 +1,32 @@
 // -----------------------------
-// VIX PRO SIGNAL LAB script.js
+// VIX PRO SIGNAL LAB - LIVE SCRIPT
 // -----------------------------
 
-const app_id = "cmeoUB84RSARWQ2"; // your Deriv API password
+const app_id = "cmeoUB84RSARWQ2"; // Your Deriv API password
 
 // Connect to Deriv WebSocket
 const ws = new WebSocket(`wss://ws.derivws.com/websockets/v3?app_id=${app_id}`);
 
+// When connection opens
 ws.onopen = function () {
     console.log("Connected to Deriv");
 
-    // Subscribe to live ticks for VIX 75 and VIX 10
+    // Subscribe to live ticks for VIX 75
     ws.send(JSON.stringify({ ticks: "R_75", subscribe: 1 }));
+
+    // Subscribe to live ticks for VIX 10
     ws.send(JSON.stringify({ ticks: "R_10", subscribe: 1 }));
 };
 
+// Track last tick values
 let last75 = 0;
 let last10 = 0;
 
-// Handle incoming tick data
+// Handle incoming tick messages
 ws.onmessage = function(msg) {
     const data = JSON.parse(msg.data);
 
+    // Check for live tick
     if (data.tick) {
         const symbol = data.tick.symbol;
         const price = data.tick.quote;
@@ -38,11 +43,10 @@ ws.onmessage = function(msg) {
     }
 };
 
-// Function to calculate probability and update signals
+// Update dashboard elements
 function updateDashboard(market, price) {
-    // Simple probability: higher price = higher probability
-    // You can customize this logic
-    let probability = Math.floor(Math.random() * 100); // placeholder random probability
+    // Temporary simple probability logic (later can be improved)
+    let probability = Math.floor(Math.random() * 100); // placeholder
     let signal = "NO TRADE";
     let signalClass = "neutral";
 
@@ -56,7 +60,7 @@ function updateDashboard(market, price) {
     document.getElementById("signal" + market).innerText = signal;
     document.getElementById("signal" + market).className = signalClass;
 
-    document.getElementById("trend" + market).innerText = price; // show live price as trend
+    document.getElementById("trend" + market).innerText = price; // live price as trend
     document.getElementById("support" + market).innerText = "Auto"; // placeholder
     document.getElementById("win" + market).innerText = "N/A"; // placeholder
     document.getElementById("cool" + market).innerText = "0"; // placeholder
